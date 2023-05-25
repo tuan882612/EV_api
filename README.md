@@ -22,6 +22,13 @@
     DELETE /stations/{stationId}/reservations/{reservationId}: 
     	- Cancel an existing reservation.
     ```
+- expected runtime per endpoint
+    ```text
+    GET    - all:    200ms max
+    GET    - single: 60ms  max
+    POST   - single: 200ms max
+    DELETE - single: 200ms max
+    ```
     
 ## Sample data
 - NoSQL
