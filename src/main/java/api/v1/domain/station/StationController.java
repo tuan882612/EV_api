@@ -1,6 +1,7 @@
 package api.v1.domain.station;
 
 import api.v1.utility.ApiResponse;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,18 +25,14 @@ public class StationController {
     public Mono<ResponseEntity<ApiResponse<List<Station>>>> AllStationsHandler() {
         return stationService.getAllStations()
                 .collectList()
-                .map(stations -> ResponseEntity
-                        .ok(new ApiResponse<>(HttpStatus.OK.value(), "All stations", stations)));
+                .map(stations -> ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "All stations", stations)));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("station/{id}")
     public Mono<ResponseEntity<ApiResponse<Station>>> StationByIdHandler(@PathVariable Integer id) {
         return stationService.getStationByStationId(id)
-                .map(station -> ResponseEntity
-                        .ok(new ApiResponse<>(HttpStatus.OK.value(), "Station found", station)))
-                .defaultIfEmpty(ResponseEntity
-                        .status(HttpStatus.NOT_FOUND)
-                        .body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Station not found", null)));
+                .map(station -> ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "Station found", station)))
+                .switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()));
     }
 
 }

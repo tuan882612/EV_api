@@ -2,10 +2,11 @@ package api.v1.domain.reservation;
 
 import api.v1.domain.station.StationService;
 import api.v1.utility.ApiResponse;
+import jakarta.validation.Valid;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -22,25 +23,38 @@ public class ReservationController {
     }
 
     @GetMapping("/reservations")
-    public Mono<ResponseEntity<ApiResponse<List<Reservation>>>> getAllReservations() {
-        return reservationService.getAllReservations()
+    public Mono<ResponseEntity<ApiResponse<List<Reservation>>>> getAllReservations(
+            @RequestParam Integer pageNumber,
+            @RequestParam Integer pageSize
+    ) {
+        return reservationService.getAllReservations(pageNumber, pageSize)
                 .collectList()
-                .map(reservations -> ResponseEntity
-                        .ok(new ApiResponse<>(HttpStatus.OK.value(), "All reservations", reservations)));
+                .map(reservations -> ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "All reservations", reservations)))
+                .switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()));
     }
 
-    @GetMapping("/{stationId}/reservations")
-    public Mono<ResponseEntity<ApiResponse<List<Reservation>>>> getAllReservationsPerStation(@PathVariable Integer stationId) {
+    @GetMapping("station/{stationId}/reservations")
+    public Mono<ResponseEntity<ApiResponse<List<Reservation>>>> getAllReservationsPerStation(
+            @PathVariable Integer stationId,
+            @RequestParam Integer pageNumber,
+            @RequestParam Integer pageSize
+    ) {
         return stationService.getStationByStationIdWithReservation(stationId)
-                .map(stationReservation -> ResponseEntity
-                        .ok(new ApiResponse<>(HttpStatus.OK.value(), "All reservations for station", stationReservation.getReservations())))
-                .switchIfEmpty(Mono.just(ResponseEntity
-                        .status(HttpStatus.NOT_FOUND)
-                        .body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Station not found", null))));
+                .map(stationReservation -> {
+                    int startIndex = (pageNumber - 1) * pageSize;
+                    int endIndex = Math.min(startIndex + pageSize, stationReservation.getReservations().size());
+
+                    return ResponseEntity
+                            .ok(new ApiResponse<>(
+                                    HttpStatus.OK.value(),
+                                    "All reservations for station",
+                                    stationReservation.getReservations().subList(startIndex, endIndex)));
+                })
+                .switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()));
     }
 
 
-    @GetMapping("/{stationId}/reservations/reservation")
+    @GetMapping("station/{stationId}/reservations/reservation")
     public Mono<ResponseEntity<ApiResponse<Reservation>>> getReservationDetails(
             @PathVariable Integer stationId,
             @RequestParam(required = false) String reservationId,
@@ -54,21 +68,24 @@ public class ReservationController {
         return ((username != null && !username.isEmpty()) ?
                         reservationService.getReservationByUsername(stationId, username) :
                         reservationService.getReservationByReservationId(stationId, reservationId))
-                .map(reservation -> ResponseEntity
-                        .ok(new ApiResponse<>(HttpStatus.OK.value(), "Reservation found", reservation)))
-                .defaultIfEmpty(ResponseEntity
-                        .status(HttpStatus.NOT_FOUND)
-                        .body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "No reservations found ", null)));
+                .map(reservation -> ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "Reservation found", reservation)))
+                .switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()));
     }
 
-
-    @PostMapping("/{stationId}/reservations")
-    public Flux<ResponseEntity<ApiResponse<Reservation>>> reserveChargingSlot(@PathVariable Integer stationId) {
-        return null;
+    @PostMapping("station/{stationId}/reservations")
+    public Mono<ResponseEntity<ApiResponse<Reservation>>> reserveChargingSlot(
+            @PathVariable Integer stationId,
+            @Valid @RequestBody CreateReservation createReservation
+    ) {
+        return reservationService.reserveChargingSlot(stationId, createReservation)
+                .map(reservation -> ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "Reservation created", reservation)))
+                .switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()));
     }
 
-    @DeleteMapping("/{stationId}/reservations/{reservationId}")
-    public Mono<ResponseEntity<ApiResponse<Void>>> cancelReservation(@PathVariable Integer stationId, @PathVariable Integer reservationId) {
-        return null;
+    @DeleteMapping("station/{stationId}/reservations/{reservationId}")
+    public Mono<ResponseEntity<ApiResponse<Object>>> cancelReservation(@PathVariable Integer stationId, @PathVariable String reservationId) {
+        return reservationService.cancelReservation(stationId, reservationId)
+                .map(reservation -> ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "Reservation cancelled", null)))
+                .switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()));
     }
 }

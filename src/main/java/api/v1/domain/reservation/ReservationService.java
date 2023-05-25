@@ -4,9 +4,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface ReservationService {
-    Flux<Reservation> getAllReservations();
+    Flux<Reservation> getAllReservations(Integer pageNumber, Integer pageSize);
     Mono<Reservation> getReservationByReservationId(Integer stationId, String reservationId);
     Mono<Reservation> getReservationByUsername(Integer stationId, String username);
-    Mono<Reservation> reserveChargingSlot(Integer stationId);
-    Mono<Reservation> cancelReservation(Integer stationId, Integer reservationId);
+    Mono<Reservation> reserveChargingSlot(Integer stationId, CreateReservation createReservation);
+    Mono<Reservation> cancelReservation(Integer stationId, String reservationId);
 }

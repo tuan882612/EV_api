@@ -12,4 +12,6 @@ public interface ReservationRepository extends ReactiveMongoRepository<Reservati
 
     @Query("{ 'reservation_id' : ?1, 'station_id' : ?0 }")
     Mono<Reservation> findByReservationId(Integer stationId, String reservationId);
+
+    Mono<Reservation> deleteByStationIdAndReservationId(Integer stationId, String reservationId);
 }
