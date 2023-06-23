@@ -1,4 +1,4 @@
-# task 1 - EV API
+# EV API
 
 > General Prompt for building a simple API for managing electric vehicle (EV) charging stations. The API will allow users to find nearby charging stations, view station details, and reserve charging slots.
 > 
